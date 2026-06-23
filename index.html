@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         /* ─── VARIABLES Y ESTILOS GLOBALES ──────────────────────────────── */
@@ -268,11 +269,11 @@
 
                 <div class="metric-container">
                     <div class="metric-card" style="border-color: #00B8A033">
-                        <div class="metric-val" id="d-producibles" style="color: var(--accent);">0</div>
+                        <div class="metric-val" id="d-producibles">0</div>
                         <div class="metric-label">Cuñetes producibles</div>
                     </div>
                     <div class="metric-card" style="border-color: #0891B233">
-                        <div class="metric-val" id="d-batches" style="color: var(--blue);">0</div>
+                        <div class="metric-val" id="d-batches">0</div>
                         <div class="metric-label">Batches disponibles</div>
                     </div>
                     <div class="metric-card" style="border-color: #00B8A033">
@@ -523,7 +524,7 @@
                     </div>
 
                     <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-family: monospace; font-size: 12px; color: var(--textMuted);">
-                        <span style="color: var(--accent); font-weight: 700;">POST</span> https://erp.stupendo.local/api/v1/inventario/validar-pedido
+                        <span style="color: var(--accent); font-weight: 700;">POST</span> https://cqxomrcwqnkjnkhxwbif.supabase.co/rest/v1/validar-pedido
                     </div>
 
                     <div class="grid-3">
@@ -572,6 +573,13 @@
     </div>
 
     <script>
+        // ─── CONFIGURACIÓN CREDENCIALES SUPABASE ─────────────────────────
+        const SUPABASE_URL = "https://cqxomrcwqnkjnkhxwbif.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_enr008QcjC9h73UG9Iw0uA_i19IejBk"; 
+
+        // Inicializar el cliente global de Supabase
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         // CONSTANTES CORE DEL SISTEMA
         const BATCH_KG = 200;
         const BATCH_X = 100, BATCH_Y = 50, BATCH_Z = 50;
@@ -581,105 +589,132 @@
         // INSTANCIAS GLOBALES DE LAS GRÁFICAS DE CHART.JS
         let chartEffInstance = null;
         let chartCuñInstance = null;
+        
+        // Memoria interna local sincronizada con BD
+        let localStockCache = { X: 0, Y: 0, Z: 0 };
+        let localPlantLogsCache = [];
+        let localDianLogsCache = [];
 
         // INICIALIZACIÓN AL CARGAR LA PÁGINA
-        document.addEventListener("DOMContentLoaded", () => {
-            // Renderizar fechas
+        document.addEventListener("DOMContentLoaded", async () => {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             document.getElementById("sidebar-date").innerText = new Date().toLocaleDateString('es-CO', options);
             document.getElementById("topbar-date").innerText = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
             
-            // Cargar pestaña guardada por memoria
             const activeTab = localStorage.getItem("activeTab") || "demanda";
             switchTab(activeTab);
             
-            // Actualizar vistas iniciales globales
-            updateGlobalStockDisplays();
-            renderPlantLogs();
-            renderDianLogs();
+            // Descargar y sincronizar todos los datos de Supabase Cloud en el arranque
+            await fetchAllFromSupabase();
             checkCeoAuthStatus();
         });
 
-        // REPLICACIÓN DE CONTEXTO DE BD (LOCALSTORAGE HELPERS)
-        function getStock() {
+        // DESCARGA Y SINCRONIZACIÓN ASÍNCRONA CENTRALIZADA
+        async function fetchAllFromSupabase() {
             try {
-                const s = localStorage.getItem("stock");
-                return s ? JSON.parse(s) : { X: 0, Y: 0, Z: 0 };
-            } catch { return { X: 0, Y: 0, Z: 0 }; }
-        }
-        function saveStock(stockObj) {
-            localStorage.setItem("stock", JSON.stringify(stockObj));
-            updateGlobalStockDisplays();
-        }
-        function getPlantLogs() {
-            try {
-                const l = localStorage.getItem("plantLogs");
-                return l ? JSON.parse(l) : [];
-            } catch { return []; }
-        }
-        function getApiLogs() {
-            try {
-                const a = localStorage.getItem("apiLogs");
-                return a ? JSON.parse(a) : [];
-            } catch { return []; }
+                // 1. Obtener Inventario
+                const { data: invData, error: e1 } = await _supabase.from('inventario').select('*');
+                if(!e1 && invData) {
+                    invData.forEach(row => {
+                        if(localStockCache.hasOwnProperty(row.id)) localStockCache[row.id] = parseFloat(row.cantidad_kg);
+                    });
+                }
+
+                // 2. Obtener Historial de Planta
+                const { data: plantData, error: e2 } = await _supabase.from('planta_logs').select('*').order('created_at', { ascending: false });
+                if(!e2 && plantData) {
+                    localPlantLogsCache = plantData.map(l => ({
+                        id: l.id,
+                        date: new Date(l.created_at).toLocaleString("es-CO"),
+                        product: l.producto,
+                        operator: l.operario,
+                        kgInput: parseFloat(l.kg_input),
+                        minutes: parseFloat(l.minutes),
+                        tempC: parseFloat(l.temp_c),
+                        cuñetes: parseInt(l.cuñetes),
+                        expectedCuñetes: parseFloat(l.expected_cuñetes),
+                        efficiency: parseFloat(l.efficiency),
+                        lostKg: parseFloat(l.lost_kg),
+                        lossPercent: parseFloat(l.loss_percent),
+                        consumoX: parseFloat(l.consumo_x),
+                        consumoY: parseFloat(l.consumo_y),
+                        consumoZ: parseFloat(l.consumo_z)
+                    }));
+                }
+
+                // 3. Obtener Logs de DIAN/API
+                const { data: dianData, error: e3 } = await _supabase.from('dian_logs').select('*').order('created_at', { ascending: false });
+                if(!e3 && dianData) {
+                    localDianLogsCache = dianData.map(d => ({
+                        id: d.id,
+                        ts: new Date(d.created_at).toLocaleString("es-CO"),
+                        client: d.client,
+                        cuñetes: d.cuñetes,
+                        status: d.status,
+                        pos: d.pos
+                    }));
+                }
+
+                // Actualizar interfaz con los nuevos datos frescos
+                updateGlobalStockDisplays();
+                renderPlantLogs();
+                renderDianLogs();
+                if (localStorage.getItem("activeTab") === "analisis" && sessionStorage.getItem("ceo_auth") === "1") {
+                    buildCeoCharts();
+                }
+
+            } catch (err) {
+                console.error("Error sincronizando con Supabase:", err);
+            }
         }
 
         // CONTROLADOR DE NAVEGACIÓN Y TABS
         function switchTab(tabId) {
             localStorage.setItem("activeTab", tabId);
             
-            // Cambiar clases activas en botones laterales
             const buttons = document.querySelectorAll("nav .nav-btn");
             buttons.forEach(btn => btn.classList.remove("active"));
             
-            // Encontrar botón correspondiente
             const idxMap = { demanda: 0, planta: 1, analisis: 2, dian: 3 };
-            buttons[idxMap[tabId]].classList.add("active");
+            if(buttons[idxMap[tabId]]) buttons[idxMap[tabId]].classList.add("active");
 
-            // Alternar contenedores visuales
             const contents = document.querySelectorAll(".tab-content");
             contents.forEach(content => content.classList.remove("active"));
             document.getElementById(`tab-${tabId}`).classList.add("active");
 
-            // Títulos dinámicos de cabecera
             const labelMap = { demanda: "Demanda", planta: "Control de Planta", analisis: "Análisis y Stock", dian: "Cumplimiento DIAN" };
             document.getElementById("header-active-tab").innerText = labelMap[tabId];
             
-            // Visibilidad del badge CEO
             document.getElementById("header-ceo-badge").style.display = (tabId === "analisis") ? "inline-flex" : "none";
 
             if (tabId === "analisis" && sessionStorage.getItem("ceo_auth") === "1") {
-                // Redibujar gráficas por si cambiaron datos en pestaña planta
                 setTimeout(buildCeoCharts, 50);
             }
         }
 
         // ACTUALIZADOR CENTRAL DE MÉTRICAS DE STOCK EN TIEMPO REAL
         function updateGlobalStockDisplays() {
-            const stock = getStock();
-            const maxBatches = Math.min(Math.floor(stock.X / BATCH_X), Math.floor(stock.Y / BATCH_Y), Math.floor(stock.Z / BATCH_Z));
+            const maxBatches = Math.min(Math.floor(localStockCache.X / BATCH_X), Math.floor(localStockCache.Y / BATCH_Y), Math.floor(localStockCache.Z / BATCH_Z));
             const canProduce = maxBatches * BATCH_YIELD;
 
-            // Elementos Pestaña Demanda
             document.getElementById("d-producibles").innerText = readyNum(canProduce);
             document.getElementById("d-batches").innerText = readyNum(maxBatches);
-            document.getElementById("d-stockX").innerText = `${readyNum(stock.X)} kg`;
-            document.getElementById("d-stockY").innerText = `${readyNum(stock.Y)} kg`;
-            document.getElementById("d-stockZ").innerText = `${readyNum(stock.Z)} kg`;
+            document.getElementById("d-stockX").innerText = `${readyNum(localStockCache.X)} kg`;
+            document.getElementById("d-stockY").innerText = `${readyNum(localStockCache.Y)} kg`;
+            document.getElementById("d-stockZ").innerText = `${readyNum(localStockCache.Z)} kg`;
 
-            // Elementos Pestaña CEO (Si está cargado el DOM interno)
             if(document.getElementById("c-stockX")) {
-                document.getElementById("c-stockX").innerText = `${readyNum(stock.X)} kg`;
-                document.getElementById("c-stockY").innerText = `${readyNum(stock.Y)} kg`;
-                document.getElementById("c-stockZ").innerText = `${readyNum(stock.Z)} kg`;
-                document.getElementById("c-totalBodega").innerText = `${readyNum(+(stock.X + stock.Y + stock.Z).toFixed(2))} kg`;
+                document.getElementById("c-stockX").innerText = `${readyNum(localStockCache.X)} kg`;
+                document.getElementById("c-stockY").innerText = `${readyNum(localStockCache.Y)} kg`;
+                document.getElementById("c-stockZ").innerText = `${readyNum(localStockCache.Z)} kg`;
+                document.getElementById("c-totalBodega").innerText = `${readyNum(+(localStockCache.X + localStockCache.Y + localStockCache.Z).toFixed(2))} kg`;
                 document.getElementById("c-batches").innerText = readyNum(maxBatches);
                 document.getElementById("c-cuñetes").innerText = readyNum(maxBatches * BATCH_YIELD);
             }
         }
 
         function readyNum(val) {
-            return val.toLocaleString("es-CO");
+            return (val || 0).toLocaleString("es-CO");
         }
 
         // ─── LÓGICA MÓDULO: DEMANDA ───────────────────────────────────────
@@ -690,8 +725,7 @@
             
             if (!cuñetes) { container.style.display = "none"; return; }
             
-            const stock = getStock();
-            const maxBatches = Math.min(Math.floor(stock.X / BATCH_X), Math.floor(stock.Y / BATCH_Y), Math.floor(stock.Z / BATCH_Z));
+            const maxBatches = Math.min(Math.floor(localStockCache.X / BATCH_X), Math.floor(localStockCache.Y / BATCH_Y), Math.floor(localStockCache.Z / BATCH_Z));
             const currentCanProduce = maxBatches * BATCH_YIELD;
 
             const batchesNeeded = Math.ceil(cuñetes / BATCH_YIELD);
@@ -699,9 +733,9 @@
             const reqY = batchesNeeded * BATCH_Y;
             const reqZ = batchesNeeded * BATCH_Z;
 
-            const defX = Math.max(0, reqX - stock.X);
-            const defY = Math.max(0, reqY - stock.Y);
-            const defZ = Math.max(0, reqZ - stock.Z);
+            const defX = Math.max(0, reqX - localStockCache.X);
+            const defY = Math.max(0, reqY - localStockCache.Y);
+            const defZ = Math.max(0, reqZ - localStockCache.Z);
             const hasDeficit = defX > 0 || defY > 0 || defZ > 0;
 
             container.style.display = "block";
@@ -738,19 +772,19 @@
                             <div style="background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
                                 <div style="font-size: 11px; color: var(--textMuted); margin-bottom: 6px; font-weight: 600;">COMPONENTE X</div>
                                 <div style="font-size: 13px; color: var(--textSoft)">Requerido: <strong style="color: var(--text)">${reqX} kg</strong></div>
-                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${stock.X.toFixed(1)} kg</strong></div>
+                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${localStockCache.X.toFixed(1)} kg</strong></div>
                                 <div style="font-size: 14px; font-weight: 700; color: ${defX > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top: 6px;">${defX > 0 ? `Faltan ${defX.toFixed(1)} kg` : 'Suficiente'}</div>
                             </div>
                             <div style="background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
                                 <div style="font-size: 11px; color: var(--textMuted); margin-bottom: 6px; font-weight: 600;">COMPONENTE Y</div>
                                 <div style="font-size: 13px; color: var(--textSoft)">Requerido: <strong style="color: var(--text)">${reqY} kg</strong></div>
-                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${stock.Y.toFixed(1)} kg</strong></div>
+                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${localStockCache.Y.toFixed(1)} kg</strong></div>
                                 <div style="font-size: 14px; font-weight: 700; color: ${defY > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top: 6px;">${defY > 0 ? `Faltan ${defY.toFixed(1)} kg` : 'Suficiente'}</div>
                             </div>
                             <div style="background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
                                 <div style="font-size: 11px; color: var(--textMuted); margin-bottom: 6px; font-weight: 600;">COMPONENTE Z</div>
                                 <div style="font-size: 13px; color: var(--textSoft)">Requerido: <strong style="color: var(--text)">${reqZ} kg</strong></div>
-                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${stock.Z.toFixed(1)} kg</strong></div>
+                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${localStockCache.Z.toFixed(1)} kg</strong></div>
                                 <div style="font-size: 14px; font-weight: 700; color: ${defZ > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top: 6px;">${defZ > 0 ? `Faltan ${defZ.toFixed(1)} kg` : 'Suficiente'}</div>
                             </div>
                         </div>
@@ -764,7 +798,7 @@
                             <span style="color: var(--success); font-weight: 700; font-size: 13px;">Stock suficiente — Demanda cubierta</span>
                         </div>
                         <p style="font-size: 13px; color: var(--successText); margin-top: 8px;">
-                            El inventario actual soporta los ${cuñetes} cuñetes estructurados en ${batchesNeeded} batch(es). Distribución apta para aprobación comercial.
+                            El inventario actual soporta los ${cuñetes} cuñetes estructurados in ${batchesNeeded} batch(es). Distribución apta para aprobación comercial.
                         </p>
                     </div>
                 `;
@@ -773,7 +807,7 @@
         }
 
         // ─── LÓGICA MÓDULO: CONTROL DE PLANTA ─────────────────────────────
-        function submitPlantLog() {
+        async function submitPlantLog() {
             const product = document.getElementById("p-product").value;
             const operator = document.getElementById("p-operator").value.trim();
             const kgInput = parseFloat(document.getElementById("p-kgInput").value);
@@ -781,7 +815,6 @@
             const tempC = parseFloat(document.getElementById("p-tempC").value);
             const cuñetes = parseInt(document.getElementById("p-cuñetes").value);
 
-            // Validaciones Estrictas
             if (!operator || isNaN(kgInput) || kgInput <= 0 || isNaN(minutes) || minutes <= 0 || isNaN(tempC) || isNaN(cuñetes) || cuñetes < 0) {
                 alert("Por favor, complete todos los campos requeridos con datos válidos.");
                 return;
@@ -792,46 +825,47 @@
             const consumoY = +(batchesUsed * BATCH_Y).toFixed(2);
             const consumoZ = +(batchesUsed * BATCH_Z).toFixed(2);
 
-            // Verificación física del stock en tiempo real antes de procesar
-            const currentStock = getStock();
-            if (currentStock.X < consumoX || currentStock.Y < consumoY || currentStock.Z < consumoZ) {
+            if (localStockCache.X < consumoX || localStockCache.Y < consumoY || localStockCache.Z < consumoZ) {
                 alert(`¡Ruptura de Stock! No hay suficiente materia prima en bodega para procesar un lote de ${kgInput} kg.`);
                 return;
             }
-
-            // Actualización matemática de inventario
-            const newStock = {
-                X: +(currentStock.X - consumoX).toFixed(2),
-                Y: +(currentStock.Y - consumoY).toFixed(2),
-                Z: +(currentStock.Z - consumoZ).toFixed(2)
-            };
-            saveStock(newStock);
 
             const expectedCuñetes = batchesUsed * BATCH_YIELD;
             const efficiency = (cuñetes / expectedCuñetes) * 100;
             const lostKg = Math.max(0, kgInput - (cuñetes * (BATCH_KG / BATCH_YIELD)));
             const lossPercent = 100 - efficiency;
 
-            const entry = {
-                id: Date.now(),
-                date: new Date().toLocaleString("es-CO"),
-                product, operator, kgInput, minutes, tempC, cuñetes,
-                expectedCuñetes: +expectedCuñetes.toFixed(2),
-                efficiency: +efficiency.toFixed(1),
-                lostKg: +lostKg.toFixed(2),
-                lossPercent: +lossPercent.toFixed(1),
-                consumoX, consumoY, consumoZ
+            // 1. Guardar log en Supabase
+            const { data: newRow, error: insertError } = await _supabase
+                .from('planta_logs')
+                .insert([{
+                    producto: product, operario: operator, kg_input: kgInput, minutes, temp_c: tempC, cuñetes,
+                    expected_cuñetes: +expectedCuñetes.toFixed(2), efficiency: +efficiency.toFixed(1),
+                    lost_kg: +lostKg.toFixed(2), loss_percent: +lossPercent.toFixed(1),
+                    consumo_x: consumoX, consumo_y: consumoY, consumo_z: consumoZ
+                }]).select();
+
+            if (insertError) {
+                alert("Error al guardar en Supabase: " + insertError.message);
+                return;
+            }
+
+            // 2. Descontar stock de forma síncrona en las 3 filas de Supabase
+            await _supabase.from('inventario').update({ cantidad_kg: +(localStockCache.X - consumoX).toFixed(2) }).eq('id', 'X');
+            await _supabase.from('inventario').update({ cantidad_kg: +(localStockCache.Y - consumoY).toFixed(2) }).eq('id', 'Y');
+            await _supabase.from('inventario').update({ cantidad_kg: +(localStockCache.Z - consumoZ).toFixed(2) }).eq('id', 'Z');
+
+            // 3. Volver a descargar para garantizar precisión
+            await fetchAllFromSupabase();
+
+            // Renderizar alerta de éxito
+            const fakeEntryForAlert = {
+                operator, expectedCuñetes: +expectedCuñetes.toFixed(2), cuñetes, efficiency: +efficiency.toFixed(1),
+                lossPercent: +lossPercent.toFixed(1), lostKg: +lostKg.toFixed(2), consumoX, consumoY, consumoZ
             };
-
-            const allLogs = getPlantLogs();
-            allLogs.unshift(entry);
-            localStorage.setItem("plantLogs", JSON.stringify(allLogs));
-
-            // Feedback visual al usuario de planta
-            renderPlantSubmittedAlert(entry);
-            renderPlantLogs();
+            renderPlantSubmittedAlert(fakeEntryForAlert);
             
-            // Limpieza de Formulario
+            // Limpieza
             document.getElementById("p-operator").value = "";
             document.getElementById("p-kgInput").value = "";
             document.getElementById("p-minutes").value = "";
@@ -842,9 +876,7 @@
         function renderPlantSubmittedAlert(entry) {
             const container = document.getElementById("plant-submitted-alert");
             container.style.display = "block";
-            
             const isMerma = entry.efficiency < 100;
-            container.className = "";
             
             container.innerHTML = `
                 <div style="background: ${isMerma ? 'var(--warnLight)' : 'var(--successLight)'}; border: 1px solid ${isMerma ? '#FCD34D55' : '#6EE7B755'}; border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
@@ -860,25 +892,19 @@
                         <span>Cuñetes reales: <strong style="color: var(--text)">${entry.cuñetes}</strong></span>
                         <span>Eficiencia: <strong style="color: ${entry.efficiency >= 100 ? 'var(--success)' : entry.efficiency >= 90 ? 'var(--warn)' : 'var(--danger)'}">${entry.efficiency}%</strong></span>
                     </div>
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 20px; font-size: 12px; color: var(--textMuted)">
-                        <span>Stock descontado automáticamente: X <strong style="color: var(--text)">-${entry.consumoX} kg</strong></span>
-                        <span>Y <strong style="color: var(--text)">-${entry.consumoY} kg</strong></span>
-                        <span>Z <strong style="color: var(--text)">-${entry.consumoZ} kg</strong></span>
-                    </div>
                 </div>
             `;
         }
 
         function renderPlantLogs() {
-            const logs = getPlantLogs();
             const card = document.getElementById("plant-history-card");
             const tbody = document.getElementById("plant-logs-table");
             
-            if (logs.length === 0) { card.style.display = "none"; return; }
+            if (localPlantLogsCache.length === 0) { card.style.display = "none"; return; }
             card.style.display = "block";
             tbody.innerHTML = "";
 
-            logs.forEach(l => {
+            localPlantLogsCache.forEach(l => {
                 const effBadge = l.efficiency >= 100 ? 'badge-ok' : l.efficiency >= 90 ? 'badge-warn' : 'badge-error';
                 const lossBadge = l.lostKg > 0 ? 'badge-warn' : 'badge-ok';
                 
@@ -903,14 +929,14 @@
             });
         }
 
-        function deletePlantLog(id) {
-            let logs = getPlantLogs();
-            logs = logs.filter(l => l.id !== id);
-            localStorage.setItem("plantLogs", JSON.stringify(logs));
-            renderPlantLogs();
-            if(sessionStorage.getItem("ceo_auth") === "1") {
-                buildCeoCharts(); // Actualizar analíticas del directivo
+        async function deletePlantLog(id) {
+            if(!confirm("¿Está seguro de eliminar este registro de producción?")) return;
+            const { error } = await _supabase.from('planta_logs').delete().eq('id', id);
+            if(error) {
+                alert("No se pudo eliminar el registro: " + error.message);
+                return;
             }
+            await fetchAllFromSupabase();
         }
 
         // ─── LÓGICA MÓDULO: ANALÍTICAS Y CONTROL CEO ─────────────────────
@@ -937,53 +963,41 @@
             }
         }
 
-        function addStockFisico() {
+        async function addStockFisico() {
             const x = parseFloat(document.getElementById("add-X").value) || 0;
             const y = parseFloat(document.getElementById("add-Y").value) || 0;
             const z = parseFloat(document.getElementById("add-Z").value) || 0;
 
             if (x === 0 && y === 0 && z === 0) return;
 
-            const stock = getStock();
-            stock.X = +(stock.X + x).toFixed(2);
-            stock.Y = +(stock.Y + y).toFixed(2);
-            stock.Z = +(stock.Z + z).toFixed(2);
+            if (x > 0) await _supabase.from('inventario').update({ cantidad_kg: +(localStockCache.X + x).toFixed(2) }).eq('id', 'X');
+            if (y > 0) await _supabase.from('inventario').update({ cantidad_kg: +(localStockCache.Y + y).toFixed(2) }).eq('id', 'Y');
+            if (z > 0) await _supabase.from('inventario').update({ cantidad_kg: +(localStockCache.Z + z).toFixed(2) }).eq('id', 'Z');
             
-            saveStock(stock);
+            await fetchAllFromSupabase();
 
             document.getElementById("add-X").value = "";
             document.getElementById("add-Y").value = "";
             document.getElementById("add-Z").value = "";
-            
-            buildCeoCharts();
         }
 
         function buildCeoCharts() {
-            const logs = getPlantLogs();
-            
-            // 1. Calcular KPIs superiores del dashboard directivo
-            const totalLogs = logs.length;
+            const totalLogs = localPlantLogsCache.length;
             let avgEff = "—";
             let lotesConMerma = 0;
             let pérdidaAcumulada = 0;
 
             if (totalLogs > 0) {
-                const sumEff = logs.reduce((acc, curr) => acc + curr.efficiency, 0);
+                const sumEff = localPlantLogsCache.reduce((acc, curr) => acc + curr.efficiency, 0);
                 avgEff = (sumEff / totalLogs).toFixed(1);
-                lotesConMerma = logs.filter(l => l.efficiency < 100).length;
-                pérdidaAcumulada = logs.reduce((acc, curr) => acc + curr.lostKg, 0).toFixed(2);
+                lotesConMerma = localPlantLogsCache.filter(l => l.efficiency < 100).length;
+                pérdidaAcumulada = localPlantLogsCache.reduce((acc, curr) => acc + curr.lostKg, 0).toFixed(2);
             }
 
             document.getElementById("kpi-eff").innerText = avgEff + (avgEff !== "—" ? "%" : "");
             document.getElementById("kpi-merma").innerText = lotesConMerma;
             document.getElementById("kpi-loss").innerText = `${pérdidaAcumulada} kg`;
             document.getElementById("kpi-logs-count").innerText = totalLogs;
-
-            // Colores dinámicos en KPIs según estados de alerta
-            const parsedAvg = parseFloat(avgEff);
-            document.getElementById("kpi-eff-card").style.borderColor = isNaN(parsedAvg) ? 'var(--border)' : parsedAvg >= 100 ? 'var(--success)33' : parsedAvg >= 90 ? 'var(--warn)33' : 'var(--danger)33';
-            document.getElementById("kpi-merma-card").style.borderColor = lotesConMerma > 0 ? 'var(--danger)33' : 'var(--success)33';
-            document.getElementById("kpi-loss-card").style.borderColor = pérdidaAcumulada > 0 ? 'var(--warn)33' : 'var(--success)33';
 
             const emptyChartMsg = document.getElementById("chart-eff-empty");
             const effWrapper = document.getElementById("chart-eff-wrapper");
@@ -1003,18 +1017,15 @@
             cuñCard.style.display = "block";
             tableCard.style.display = "block";
 
-            // Preparación cronológica reversa para gráficas (de Lote 1 en adelante)
-            const sortedLogs = [...logs].reverse();
+            const sortedLogs = [...localPlantLogsCache].reverse();
             const labels = sortedLogs.map((_, i) => `Lote ${i + 1}`);
             const effData = sortedLogs.map(l => l.efficiency);
             const cuñData = sortedLogs.map(l => l.cuñetes);
             const pointColors = effData.map(v => v >= 100 ? "#00B8A0" : v >= 90 ? "#F59E0B" : "#EF4444");
 
-            // DESTROZAR GRÁFICAS PREVIAS PARA EVITAR BUG DE MEMORIA CANVAS
             if(chartEffInstance) chartEffInstance.destroy();
             if(chartCuñInstance) chartCuñInstance.destroy();
 
-            // Gráfico de Línea - Eficiencias
             const ctxEff = document.getElementById('canvasEff').getContext('2d');
             chartEffInstance = new Chart(ctxEff, {
                 type: 'line',
@@ -1030,92 +1041,41 @@
                         pointRadius: 6,
                         tension: 0.45,
                         fill: true,
-                        backgroundColor: (context) => {
-                            const chart = context.chart;
-                            const {ctx, chartArea} = chart;
-                            if (!chartArea) return null;
-                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                            gradient.addColorStop(0, "rgba(0,184,160,0.18)");
-                            gradient.addColorStop(1, "rgba(0,184,160,0)");
-                            return gradient;
-                        }
+                        backgroundColor: 'rgba(0,184,160,0.05)'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: { min: 0, max: 120, grid: { color: "#EDF2F7" }, ticks: { color: "#94A3B8", font: { size: 11 } } },
-                        x: { grid: { color: "#EDF2F7" }, ticks: { color: "#94A3B8", font: { size: 11 } } }
-                    },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#FFFFFF', borderColor: '#E8EDF5', borderWidth: 1,
-                            titleColor: '#4A5568', bodyColor: '#1A202C', padding: 12, cornerRadius: 10,
-                            callbacks: {
-                                label: (context) => {
-                                    const item = sortedLogs[context.dataIndex];
-                                    return [
-                                        `Eficiencia: ${item.efficiency}%`,
-                                        `Operario: ${item.operator}`,
-                                        `Cuñetes: ${item.cuñetes}/${item.expectedCuñetes}`,
-                                        `Pérdida: ${item.lostKg} kg`
-                                    ];
-                                }
-                            }
-                        }
-                    }
+                    scales: { y: { min: 0, max: 120 } },
+                    plugins: { legend: { display: false } }
                 }
             });
 
-            // Gráfico de Barras - Cuñetes Reales
             const ctxCuñ = document.getElementById('canvasCuñ').getContext('2d');
             chartCuñInstance = new Chart(ctxCuñ, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        data: cuñData,
-                        backgroundColor: "rgba(0,184,160,0.7)",
-                        borderColor: '#00B8A0',
-                        borderWidth: 1.5,
-                        borderRadius: 6
-                    }]
+                    datasets: [{ data: cuñData, backgroundColor: "rgba(0,184,160,0.7)", borderColor: '#00B8A0', borderWidth: 1.5 }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: "#EDF2F7" }, ticks: { color: "#94A3B8", font: { size: 11 } } },
-                        x: { grid: { display: false }, ticks: { color: "#94A3B8", font: { size: 11 } } }
-                    },
-                    plugins: { legend: { display: false } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            // Tabla inferior de Auditoría
             const tbody = document.getElementById("ceo-logs-table");
             tbody.innerHTML = "";
             sortedLogs.reverse().forEach((l, i) => {
                 const rowIdx = totalLogs - i;
                 const badge = l.efficiency >= 100 ? 'badge-ok' : l.efficiency >= 90 ? 'badge-warn' : 'badge-error';
-                const statusTxt = l.efficiency >= 100 ? 'Rendimiento óptimo' : l.efficiency >= 90 ? `Merma: ${l.lossPercent}%` : `Alarma: ${l.lossPercent}% — ${l.lostKg} kg`;
+                const statusTxt = l.efficiency >= 100 ? 'Rendimiento óptimo' : l.efficiency >= 90 ? `Merma: ${l.lossPercent}%` : `Alarma`;
                 
                 const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${rowIdx}</td>
-                    <td>${l.date}</td>
-                    <td>${l.operator}</td>
-                    <td style="font-size:12px;">${l.product}</td>
-                    <td><span class="badge ${badge}">${l.efficiency}%</span></td>
-                    <td style="font-weight:500;">${statusTxt}</td>
-                `;
+                tr.innerHTML = `<td>${rowIdx}</td><td>${l.date}</td><td>${l.operator}</td><td>${l.product}</td><td><span class="badge ${badge}">${l.efficiency}%</span></td><td>${statusTxt}</td>`;
                 tbody.appendChild(tr);
             });
         }
 
-        // ─── LÓGICA MÓDULO: INTEGRACIÓN DIAN SIMULADA ─────────────────────
+        // ─── LÓGICA MÓDULO: INTEGRACIÓN DIAN ─────────────────────────────
         async function simulateDianRequest() {
             const pos = document.getElementById("dian-pos").value;
             const client = document.getElementById("dian-client").value.trim();
@@ -1130,66 +1090,33 @@
             btn.disabled = true;
             btn.innerText = "Validando fisicalidad...";
 
-            // Simulación asíncrona de latencia de red de pasarelas DIAN (600ms)
-            await new Promise(resolve => setTimeout(resolve, 600));
-
-            const stock = getStock();
             const batchesNeeded = Math.ceil(cuñetes / BATCH_YIELD);
             const reqX = batchesNeeded * BATCH_X;
             const reqY = batchesNeeded * BATCH_Y;
             const reqZ = batchesNeeded * BATCH_Z;
 
-            const isApproved = stock.X >= reqX && stock.Y >= reqY && stock.Z >= reqZ;
+            const isApproved = localStockCache.X >= reqX && localStockCache.Y >= reqY && localStockCache.Z >= reqZ;
+            const status = isApproved ? 200 : 400;
+
+            // Guardar log en tabla `dian_logs` de Supabase
+            const { error } = await _supabase.from('dian_logs').insert([{ pos, client, cuñetes, status }]);
+            if(error) console.error("Error guardando log DIAN:", error);
             
-            // Generación pseudo-aleatoria del Hash de timbre fiscal (CUFE / QR standard)
-            const hash = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join("");
-            const timestamp = new Date().toISOString();
+            // Volver a descargar datos para refrescar la tabla del módulo
+            await fetchAllFromSupabase();
 
-            let status = 0;
-            let statusText = "";
-            let responseBody = {};
+            // Renderizar JSON dummy en pantalla
+            const hash = Array.from({length: 16}, () => Math.floor(Math.random()*16).toString(16)).join("");
+            const responseBody = {
+                resultado: isApproved ? "APROBADO" : "BLOQUEADO",
+                status_http: status,
+                timestamp: new Date().toISOString(),
+                cliente: client,
+                cuñetes_solicitados: cuñetes,
+                hash_transaccion: hash.toUpperCase()
+            };
 
-            if (isApproved) {
-                status = 200;
-                statusText = "OK — Inventario Bloqueado y Listo para Timbrado DIAN";
-                responseBody = {
-                    resultado: "APROBADO",
-                    codigo_validacion: "INV-OK-" + hash.slice(0, 8).toUpperCase(),
-                    hash_validacion: hash,
-                    timestamp,
-                    pedido: { cliente: client, pos, cuñetes, batches: batchesNeeded },
-                    inventario_bloqueado: { componente_x_kg: reqX, componente_y_kg: reqY, componente_z_kg: reqZ },
-                    mensaje: "Inventario físico verificado. Stock suficiente. Transacción habilitada para timbrado DIAN."
-                };
-            } else {
-                status = 400;
-                statusText = "Bad Request — Ruptura de Stock";
-                responseBody = {
-                    resultado: "BLOQUEADO",
-                    codigo_error: "STOCK-ERR-" + hash.slice(0, 8).toUpperCase(),
-                    timestamp,
-                    pedido: { cliente: client, pos, cuñetes, batches: batchesNeeded },
-                    deficit: { 
-                        componente_x_kg: Math.max(0, reqX - stock.X), 
-                        componente_y_kg: Math.max(0, reqY - stock.Y), 
-                        componente_z_kg: Math.max(0, reqZ - stock.Z) 
-                    },
-                    mensaje: "FACTURACION BLOQUEADA: Inventario insuficiente. Reabastezca antes de continuar."
-                };
-            }
-
-            // Almacenar logs de API
-            const apiLogs = getApiLogs();
-            apiLogs.unshift({
-                id: Date.now(),
-                ts: new Date().toLocaleString("es-CO"),
-                client, cuñetes, status, pos
-            });
-            localStorage.setItem("apiLogs", JSON.stringify(apiLogs));
-
-            // Renderizado de respuestas JSON estiladas
-            renderDianResponse(status, statusText, responseBody);
-            renderDianLogs();
+            renderDianResponse(status, isApproved ? "OK — Transacción Habilitada" : "Ruptura de Stock", responseBody);
 
             btn.disabled = false;
             btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z"/></svg> Simular Solicitud POS`;
@@ -1198,29 +1125,29 @@
         function renderDianResponse(status, statusText, body) {
             const container = document.getElementById("dian-response-container");
             container.style.display = "block";
-            
             const isOk = status === 200;
+
             container.innerHTML = `
-                <div class="card" style="border-color: ${isOk ? '#6EE7B7' : '#FCA5A5'}; background: ${isOk ? 'var(--successLight)' : 'var(--dangerLight)'}">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
-                        <span class="badge ${isOk ? 'badge-ok' : 'badge-error'}">HTTP ${status}</span>
-                        <span style="font-size: 13px; font-weight: 600; color: ${isOk ? 'var(--success)' : 'var(--danger)'};">${statusText}</span>
+                <div class="divider"></div>
+                <div style="background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--textMuted); letter-spacing: 0.5px; text-transform: uppercase;">RESPUESTA HTTP DEL SERVIDOR</span>
+                        <span class="badge ${isOk ? 'badge-ok' : 'badge-error'}" style="font-size: 12px; padding: 4px 12px;">HTTP ${status} : ${statusText}</span>
                     </div>
-                    <pre style="background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 12px; color: var(--textSoft); white-space: pre-wrap; word-break: break-all; margin: 0;">${JSON.stringify(body, null, 2)}</pre>
+                    <pre style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 12px; color: var(--textSoft); white-space: pre-wrap; word-break: break-all; margin: 0;">${JSON.stringify(body, null, 2)}</pre>
                 </div>
             `;
         }
 
         function renderDianLogs() {
-            const logs = getApiLogs();
             const card = document.getElementById("dian-logs-card");
             const tbody = document.getElementById("dian-logs-table");
 
-            if (logs.length === 0) { card.style.display = "none"; return; }
+            if (localDianLogsCache.length === 0) { card.style.display = "none"; return; }
             card.style.display = "block";
             tbody.innerHTML = "";
 
-            logs.forEach(l => {
+            localDianLogsCache.forEach(l => {
                 const badge = l.status === 200 ? 'badge-ok' : 'badge-error';
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
@@ -1234,9 +1161,14 @@
             });
         }
 
-        function clearDianLogs() {
-            localStorage.setItem("apiLogs", JSON.stringify([]));
-            renderDianLogs();
+        async function clearDianLogs() {
+            if(!confirm("¿Desea limpiar el historial de peticiones de la API DIAN en Supabase?")) return;
+            const { error } = await _supabase.from('dian_logs').delete().gt('id', 0);
+            if(error) {
+                alert("Error al limpiar registros: " + error.message);
+                return;
+            }
+            await fetchAllFromSupabase();
         }
     </script>
 </body>
