@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stupendo ERP - Alco Products</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+    <style>
+        /* ─── VARIABLES Y ESTILOS GLOBALES ──────────────────────────────── */
+        :root {
+            --bg: #F8F9FC;
+            --surface: #FFFFFF;
+            --sidebar: #FFFFFF;
+            --border: #E8EDF5;
+            --borderHover: #CBD5E1;
+            --accent: #00B8A0;
+            --accentHover: #009E89;
+            --accentLight: #E6FAF8;
+            --accentDark: #007A6E;
+            --warn: #F59E0B;
+            --warnLight: #FFFBEB;
+            --warnText: #92400E;
+            --danger: #EF4444;
+            --dangerLight: #FEF2F2;
+            --dangerText: #991B1B;
+            --success: #10B981;
+            --successLight: #ECFDF5;
+            --successText: #065F46;
+            --text: #1A202C;
+            --textSoft: #4A5568;
+            --textMuted: #94A3B8;
+            --white: #FFFFFF;
+            --purple: #7C3AED;
+            --blue: #0891B2;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ─── COMPONENTES COMUNES (ESTILOS COMPARTIDOS) ─────────────────── */
+        .input, .select {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 9px 13px;
+            font-size: 13px;
+            width: 100%;
+            outline: none;
+            transition: border-color .15s;
+        }
+        .input:focus, .select:focus {
+            border-color: var(--accent);
+        }
+
+        .select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .btn {
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: opacity .15s;
+            border: none;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: var(--accent); color: var(--white); }
+        .btn-danger { background: var(--danger); color: var(--white); }
+        .btn-secondary { background: var(--white); color: var(--textSoft); border: 1px solid var(--border); }
+        .btn-default { background: var(--bg); color: var(--textSoft); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 26px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--textMuted);
+            margin-bottom: 16px;
+        }
+
+        .metric-container {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .metric-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            flex: 1;
+            min-width: 140px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .metric-val { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.15; }
+        .metric-label { font-size: 11px; color: var(--textMuted); margin-top: 5px; letter-spacing: 0.4px; }
+
+        .label { font-size: 12px; color: var(--textSoft); margin-bottom: 5px; font-weight: 500; display: block; }
+        
+        .badge {
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .badge-ok { background: var(--successLight); color: var(--successText); }
+        .badge-warn { background: var(--warnLight); color: var(--warnText); }
+        .badge-error { background: var(--dangerLight); color: var(--dangerText); }
+        .badge-info { background: var(--accentLight); color: var(--accentDark); }
+        .badge-neutral { background: var(--bg); color: var(--textSoft); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media(max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+        .divider { border-top: 1px solid var(--border); margin: 20px 0; }
+        
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { color: var(--textMuted); font-weight: 600; letter-spacing: 0.4px; padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; font-size: 11px; text-transform: uppercase; }
+        td { color: var(--textSoft); padding: 10px 14px; border-bottom: 1px solid var(--bg); font-size: 13px; }
+
+        /* ─── ESTRUCTURA (SIDEBAR + MAIN) ───────────────────────────────── */
+        aside {
+            width: 228px; flex-shrink: 0; background: var(--sidebar);
+            border-right: 1px solid var(--border); display: flex; flexDirection: column;
+            box-shadow: 1px 0 0 #EDF2F7;
+            display: flex; flex-direction: column;
+        }
+
+        .sidebar-logo { padding: 22px 24px 18px; border-bottom: 1px solid var(--border); }
+        .logo-box { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 34px; height: 34px; background: var(--accentLight); border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+
+        nav { padding: 12px 10px; flex: 1; }
+        .nav-title { font-size: 10px; font-weight: 600; color: var(--textMuted); letter-spacing: 1px; padding: 8px 12px 6px; text-transform: uppercase; }
+        
+        .nav-btn {
+            display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px;
+            border-radius: 9px; border: none; cursor: pointer; text-align: left; margin-bottom: 2px;
+            background: transparent; color: var(--textSoft); font-size: 13px; transition: background .12s, color .12s;
+        }
+        .nav-btn.active {
+            background: var(--accentLight); color: var(--accentDark); font-weight: 600;
+        }
+        .nav-btn .lock-icon { margin-left: auto; }
+
+        .sidebar-footer { padding: 14px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--textMuted); }
+
+        .main-layout { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        header { height: 56px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 10px; flex-shrink: 0; }
+        main { flex: 1; overflow-y: auto; padding: 28px 32px; max-width: 1140px; width: 100%; box-sizing: border-box; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ─── GATE AUTOMÁTICO PARA CEO ──────────────────────────────────── */
+        .ceo-gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px; }
+        .ceo-gate-card { background: var(--white); border: 1px solid var(--border); border-radius: 18px; padding: 40px 44px; max-width: 380px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.07); text-align: center; }
+        .ceo-icon-circle { width: 56px; height: 56px; background: var(--accentLight); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-logo">
+            <div class="logo-box">
+                <div class="logo-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00B8A0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6m-3 0v6l-4 9a1 1 0 0 0 .9 1.5h8.2a1 1 0 0 0 .9-1.5L14 9V3"/></svg>
+                </div>
+                <div>
+                    <div style="font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0.3px;">Stupendo ERP</div>
+                    <div style="font-size: 10px; color: var(--textMuted); margin-top: 1px;">Alco Products</div>
+                </div>
+            </div>
+        </div>
+        <nav>
+            <div class="nav-title">Módulos</div>
+            <button class="nav-btn active" onclick="switchTab('demanda')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 4 18 3-9h4"/></svg>
+                <span>Demanda</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('planta')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12M12 12C12 12 8 9 8 5a4 4 0 0 1 8 0c0 4-4 7-4 7zM12 12C12 12 16 9 16 5"/></svg>
+                <span>Control de Planta</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('analisis')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M18 9l-5 5-4-4-5 5"/></svg>
+                <span>Análisis y Stock</span>
+                <svg class="lock-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2zM12 3a4 4 0 0 1 4 4v4H8V7a4 4 0 0 1 4-4z"/></svg>
+            </button>
+            <button class="nav-btn" onclick="switchTab('dian')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <span>Cumplimiento DIAN</span>
+            </button>
+        </nav>
+        <div class="sidebar-footer">
+            <div>Barranquilla, Colombia</div>
+            <div id="sidebar-date" style="margin-top: 2px;"></div>
+        </div>
+    </aside>
+
+    <div class="main-layout">
+        <header>
+            <span style="font-size: 13px; color: var(--textMuted);">Stupendo ERP</span>
+            <span style="color: var(--border);">›</span>
+            <span id="header-active-tab" style="font-size: 13px; font-weight: 600; color: var(--text);">Demanda</span>
+            <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+                <span id="header-ceo-badge" class="badge badge-info" style="display: none;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2l7 4v5c0 5-3.5 9.74-7 11-3.5-1.26-7-6-7-11V6l7-4z"/></svg> Solo CEO
+                </span>
+                <span class="badge badge-neutral">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2"/></svg>
+                    <span id="topbar-date"></span>
+                </span>
+            </div>
+        </header>
+
+        <main>
+            <div id="tab-demanda" class="tab-content active">
+                <div style="margin-bottom: 24px;">
+                    <h2 style="font-size: 20px; font-weight: 700; color: var(--text);">Simulador de Demanda Mayorista</h2>
+                    <p style="font-size: 13px; color: var(--textMuted); margin-top: 4px;">Calcula si el stock actual soporta un pedido. No requiere autorización CEO.</p>
+                </div>
+
+                <div class="metric-container">
+                    <div class="metric-card" style="border-color: #00B8A033">
+                        <div class="metric-val" id="d-producibles" style="color: var(--accent);">0</div>
+                        <div class="metric-label">Cuñetes producibles</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #0891B233">
+                        <div class="metric-val" id="d-batches" style="color: var(--blue);">0</div>
+                        <div class="metric-label">Batches disponibles</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #00B8A033">
+                        <div class="metric-val" id="d-stockX" style="color: var(--accent);">0 kg</div>
+                        <div class="metric-label">Stock X disponible</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #7C3AED33">
+                        <div class="metric-val" id="d-stockY" style="color: var(--purple);">0 kg</div>
+                        <div class="metric-label">Stock Y disponible</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #0891B233">
+                        <div class="metric-val" id="d-stockZ" style="color: var(--blue);">0 kg</div>
+                        <div class="metric-label">Stock Z disponible</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">Consultar capacidad de atención</div>
+                    <div class="row">
+                        <div style="flex: 1;">
+                            <label class="label">Cuñetes requeridos por el comprador</label>
+                            <input class="input" type="number" id="demand-input" min="1" placeholder="Ej: 50">
+                        </div>
+                        <button class="btn btn-primary" onclick="analyzeDemand()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12h4l3-9 4 18 3-9h4"/></svg> Analizar
+                        </button>
+                    </div>
+
+                    <div id="demand-analysis-result" style="margin-top: 20px; display: none;"></div>
+                </div>
+            </div>
+
+            <div id="tab-planta" class="tab-content">
+                <div style="margin-bottom: 24px;">
+                    <h2 style="font-size: 20px; font-weight: 700; color: var(--text);">Control de Planta</h2>
+                    <p style="font-size: 13px; color: var(--textMuted); margin-top: 4px;">Registro de lotes de producción. El stock de materias primas se descuenta automáticamente.</p>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">Nuevo registro de lote</div>
+                    <div class="grid-2">
+                        <div>
+                            <label class="label">Producto producido</label>
+                            <select class="select" id="p-product">
+                                <option>Detergente Líquido Stupendo</option>
+                                <option>Lavaloza</option>
+                                <option>Limpiapisos</option>
+                                <option>Suavizante</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Operario a cargo <span style="color: var(--danger)">*</span></label>
+                            <input class="input" id="p-operator" placeholder="Nombre completo">
+                        </div>
+                        <div>
+                            <label class="label">Material ingresado a la máquina (kg) <span style="color: var(--danger)">*</span></label>
+                            <input class="input" type="number" id="p-kgInput" min="0" placeholder="200">
+                        </div>
+                        <div>
+                            <label class="label">Tiempo de operación del reactor (min) <span style="color: var(--danger)">*</span></label>
+                            <input class="input" type="number" id="p-minutes" min="0" placeholder="90">
+                        </div>
+                        <div>
+                            <label class="label">Temperatura promedio (°C) <span style="color: var(--danger)">*</span></label>
+                            <input class="input" type="number" id="p-tempC" placeholder="65">
+                        </div>
+                        <div>
+                            <label class="label">Cuñetes reales obtenidos <span style="color: var(--danger)">*</span></label>
+                            <input class="input" type="number" id="p-cuñetes" min="0" placeholder="10">
+                        </div>
+                    </div>
+                    <div style="margin-top: 18px;">
+                        <button class="btn btn-primary" onclick="submitPlantLog()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5v14M5 12h14"/></svg> Registrar Lote
+                        </button>
+                    </div>
+                </div>
+
+                <div id="plant-submitted-alert" style="display: none;"></div>
+
+                <div class="card" id="plant-history-card" style="display: none;">
+                    <div class="section-title">Historial de producción</div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th><th>Producto</th><th>Operario</th><th>kg Entrada</th><th>Min</th><th>Temp C</th><th>Cuñetes</th><th>Eficiencia</th><th>Pérdida</th><th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="plant-logs-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-analisis" class="tab-content">
+                <div id="ceo-lock-screen" class="ceo-gate">
+                    <div class="ceo-gate-card">
+                        <div class="ceo-icon-circle">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00B8A0" stroke-width="1.7"><path d="M12 2l7 4v5c0 5-3.5 9.74-7 11-3.5-1.26-7-6-7-11V6l7-4z"/></svg>
+                        </div>
+                        <div style="font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Acceso Restringido</div>
+                        <div style="font-size: 13px; color: var(--textMuted); margin-bottom: 28px; line-height: 1.6;">
+                            Este módulo requiere credenciales de dirección. Ingrese la clave CEO para continuar.
+                        </div>
+                        <div style="position: relative; margin-bottom: 12px;">
+                            <input class="input" type="password" id="ceo-password-input" placeholder="Clave CEO" style="text-align: center; letter-spacing: 3px; font-size: 16px;">
+                        </div>
+                        <div id="ceo-error-msg" style="font-size: 12px; color: var(--danger); margin-bottom: 12px; display: none;">Clave incorrecta. Intente de nuevo.</div>
+                        <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 11px 18px;" onclick="tryUnlockCeo()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2zM12 3a4 4 0 0 1 4 4v4H8V7a4 4 0 0 1 4-4z"/></svg> Ingresar
+                        </button>
+                    </div>
+                </div>
+
+                <div id="ceo-content" style="display: none;">
+                    <div style="margin-bottom: 24px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 style="font-size: 20px; font-weight: 700; color: var(--text); margin-none: 0;">Análisis y Stock de Materia Prima</h2>
+                            <span class="badge badge-info">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2l7 4v5c0 5-3.5 9.74-7 11-3.5-1.26-7-6-7-11V6l7-4z"/></svg> Acceso CEO
+                            </span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--textMuted); margin-top: 4px;">Inventario en tiempo real y gráficos de rendimiento de planta.</p>
+                    </div>
+
+                    <div class="metric-container">
+                        <div class="metric-card" style="border-color: #00B8A033">
+                            <div class="metric-val" id="c-stockX" style="color: var(--accent); font-size: 22px;">0 kg</div>
+                            <div class="metric-label">Componente X</div>
+                        </div>
+                        <div class="metric-card" style="border-color: #7C3AED33">
+                            <div class="metric-val" id="c-stockY" style="color: var(--purple); font-size: 22px;">0 kg</div>
+                            <div class="metric-label">Componente Y</div>
+                        </div>
+                        <div class="metric-card" style="border-color: #0891B233">
+                            <div class="metric-val" id="c-stockZ" style="color: var(--blue); font-size: 22px;">0 kg</div>
+                            <div class="metric-label">Componente Z</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-val" id="c-totalBodega" style="font-size: 22px;">0 kg</div>
+                            <div class="metric-label">Total en bodega</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-val" id="c-batches" style="font-size: 22px;">0</div>
+                            <div class="metric-label">Batches posibles</div>
+                        </div>
+                        <div class="metric-card" style="border-color: #00B8A033">
+                            <div class="metric-val" id="c-cuñetes" style="color: var(--accent); font-size: 22px;">0</div>
+                            <div class="metric-label">Cuñetes posibles</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="section-title">Ingreso de lote de materia prima</div>
+                        <div class="grid-3">
+                            <div>
+                                <label class="label">Componente X (kg)</label>
+                                <input class="input" type="number" id="add-X" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="label">Componente Y (kg)</label>
+                                <input class="input" type="number" id="add-Y" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="label">Componente Z (kg)</label>
+                                <input class="input" type="number" id="add-Z" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div style="margin-top: 14px;">
+                            <button class="btn btn-primary" onclick="addStockFisico()">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5v14M5 12h14"/></svg> Registrar Ingreso
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="metric-container">
+                        <div class="metric-card" id="kpi-eff-card">
+                            <div class="metric-val" id="kpi-eff">—</div>
+                            <div class="metric-label">Eficiencia promedio</div>
+                        </div>
+                        <div class="metric-card" id="kpi-merma-card">
+                            <div class="metric-val" id="kpi-merma">0</div>
+                            <div class="metric-label">Lotes con merma</div>
+                        </div>
+                        <div class="metric-card" id="kpi-loss-card">
+                            <div class="metric-val" id="kpi-loss">0 kg</div>
+                            <div class="metric-label">Pérdida acumulada</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-val" id="kpi-logs-count">0</div>
+                            <div class="metric-label">Lotes registrados</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                            <div class="section-title" style="margin: 0;">Rendimiento real por lote (%)</div>
+                        </div>
+                        <div id="chart-eff-empty" style="text-align: center; padding: 48px 0; color: var(--textMuted);">
+                            <p>Sin datos. Registre lotes en Control de Planta para ver tendencias.</p>
+                        </div>
+                        <div id="chart-eff-wrapper" style="position: relative; height: 300px; display: none;">
+                            <canvas id="canvasEff"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card" id="chart-cuñ-card" style="display: none;">
+                        <div class="section-title">Cuñetes producidos por lote</div>
+                        <div style="position: relative; height: 240px;">
+                            <canvas id="canvasCuñ"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card" id="ceo-table-card" style="display: none;">
+                        <div class="section-title">Detalle de rendimiento por lote</div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Lote</th><th>Fecha</th><th>Operario</th><th>Producto</th><th>Eficiencia</th><th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-logs-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-dian" class="tab-content">
+                <div style="margin-bottom: 24px;">
+                    <h2 style="font-size: 20px; font-weight: 700; color: var(--text);">Cumplimiento DIAN</h2>
+                    <p style="font-size: 13px; color: var(--textMuted); margin-top: 4px;">Validador de inventario pre-factura electrónica. Simulador de puente POS.</p>
+                </div>
+
+                <div class="card">
+                    <div style="display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px;">
+                        <div style="width: 40px; height: 40px; background: var(--accentLight); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B8A0" stroke-width="1.7"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; font-weight: 600; color: var(--text);">Puente de Validación Pre-Factura</div>
+                            <p style="font-size: 13px; color: var(--textMuted); margin-top: 4px; line-height: 1.6;">
+                                Verifica si la materia prima física en bodega soporta el pedido antes del timbrado DIAN. Sin aprobación de este sistema, la factura no debe emitirse.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-family: monospace; font-size: 12px; color: var(--textMuted);">
+                        <span style="color: var(--accent); font-weight: 700;">POST</span> https://erp.stupendo.local/api/v1/inventario/validar-pedido
+                    </div>
+
+                    <div class="grid-3">
+                        <div>
+                            <label class="label">Sistema POS emisor</label>
+                            <select class="select" id="dian-pos">
+                                <option>Alegra</option><option>Siigo</option><option>World Office</option><option>Helisa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Cliente mayorista</label>
+                            <input class="input" id="dian-client" placeholder="Nombre o NIT del cliente">
+                        </div>
+                        <div>
+                            <label class="label">Cuñetes a facturar</label>
+                            <input class="input" type="number" id="dian-cuñetes" min="1" placeholder="Ej: 30">
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-primary" id="dian-submit-btn" onclick="simulateDianRequest()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z"/></svg> Simular Solicitud POS
+                        </button>
+                    </div>
+                </div>
+
+                <div id="dian-response-container" style="display: none;"></div>
+
+                <div class="card" id="dian-logs-card" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <div class="section-title" style="margin: 0;">Log de solicitudes API</div>
+                        <button class="btn btn-default" onclick="clearDianLogs()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Limpiar</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th><th>Sistema POS</th><th>Cliente</th><th>Cuñetes</th><th>Respuesta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dian-logs-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // CONSTANTES CORE DEL SISTEMA
+        const BATCH_KG = 200;
+        const BATCH_X = 100, BATCH_Y = 50, BATCH_Z = 50;
+        const BATCH_YIELD = 10;
+        const CEO_PASSWORD = "alco2025";
+
+        // INSTANCIAS GLOBALES DE LAS GRÁFICAS DE CHART.JS
+        let chartEffInstance = null;
+        let chartCuñInstance = null;
+
+        // INICIALIZACIÓN AL CARGAR LA PÁGINA
+        document.addEventListener("DOMContentLoaded", () => {
+            // Renderizar fechas
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById("sidebar-date").innerText = new Date().toLocaleDateString('es-CO', options);
+            document.getElementById("topbar-date").innerText = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+            
+            // Cargar pestaña guardada por memoria
+            const activeTab = localStorage.getItem("activeTab") || "demanda";
+            switchTab(activeTab);
+            
+            // Actualizar vistas iniciales globales
+            updateGlobalStockDisplays();
+            renderPlantLogs();
+            renderDianLogs();
+            checkCeoAuthStatus();
+        });
+
+        // REPLICACIÓN DE CONTEXTO DE BD (LOCALSTORAGE HELPERS)
+        function getStock() {
+            try {
+                const s = localStorage.getItem("stock");
+                return s ? JSON.parse(s) : { X: 0, Y: 0, Z: 0 };
+            } catch { return { X: 0, Y: 0, Z: 0 }; }
+        }
+        function saveStock(stockObj) {
+            localStorage.setItem("stock", JSON.stringify(stockObj));
+            updateGlobalStockDisplays();
+        }
+        function getPlantLogs() {
+            try {
+                const l = localStorage.getItem("plantLogs");
+                return l ? JSON.parse(l) : [];
+            } catch { return []; }
+        }
+        function getApiLogs() {
+            try {
+                const a = localStorage.getItem("apiLogs");
+                return a ? JSON.parse(a) : [];
+            } catch { return []; }
+        }
+
+        // CONTROLADOR DE NAVEGACIÓN Y TABS
+        function switchTab(tabId) {
+            localStorage.setItem("activeTab", tabId);
+            
+            // Cambiar clases activas en botones laterales
+            const buttons = document.querySelectorAll("nav .nav-btn");
+            buttons.forEach(btn => btn.classList.remove("active"));
+            
+            // Encontrar botón correspondiente
+            const idxMap = { demanda: 0, planta: 1, analisis: 2, dian: 3 };
+            buttons[idxMap[tabId]].classList.add("active");
+
+            // Alternar contenedores visuales
+            const contents = document.querySelectorAll(".tab-content");
+            contents.forEach(content => content.classList.remove("active"));
+            document.getElementById(`tab-${tabId}`).classList.add("active");
+
+            // Títulos dinámicos de cabecera
+            const labelMap = { demanda: "Demanda", planta: "Control de Planta", analisis: "Análisis y Stock", dian: "Cumplimiento DIAN" };
+            document.getElementById("header-active-tab").innerText = labelMap[tabId];
+            
+            // Visibilidad del badge CEO
+            document.getElementById("header-ceo-badge").style.display = (tabId === "analisis") ? "inline-flex" : "none";
+
+            if (tabId === "analisis" && sessionStorage.getItem("ceo_auth") === "1") {
+                // Redibujar gráficas por si cambiaron datos en pestaña planta
+                setTimeout(buildCeoCharts, 50);
+            }
+        }
+
+        // ACTUALIZADOR CENTRAL DE MÉTRICAS DE STOCK EN TIEMPO REAL
+        function updateGlobalStockDisplays() {
+            const stock = getStock();
+            const maxBatches = Math.min(Math.floor(stock.X / BATCH_X), Math.floor(stock.Y / BATCH_Y), Math.floor(stock.Z / BATCH_Z));
+            const canProduce = maxBatches * BATCH_YIELD;
+
+            // Elementos Pestaña Demanda
+            document.getElementById("d-producibles").innerText = readyNum(canProduce);
+            document.getElementById("d-batches").innerText = readyNum(maxBatches);
+            document.getElementById("d-stockX").innerText = `${readyNum(stock.X)} kg`;
+            document.getElementById("d-stockY").innerText = `${readyNum(stock.Y)} kg`;
+            document.getElementById("d-stockZ").innerText = `${readyNum(stock.Z)} kg`;
+
+            // Elementos Pestaña CEO (Si está cargado el DOM interno)
+            if(document.getElementById("c-stockX")) {
+                document.getElementById("c-stockX").innerText = `${readyNum(stock.X)} kg`;
+                document.getElementById("c-stockY").innerText = `${readyNum(stock.Y)} kg`;
+                document.getElementById("c-stockZ").innerText = `${readyNum(stock.Z)} kg`;
+                document.getElementById("c-totalBodega").innerText = `${readyNum(+(stock.X + stock.Y + stock.Z).toFixed(2))} kg`;
+                document.getElementById("c-batches").innerText = readyNum(maxBatches);
+                document.getElementById("c-cuñetes").innerText = readyNum(maxBatches * BATCH_YIELD);
+            }
+        }
+
+        function readyNum(val) {
+            return val.toLocaleString("es-CO");
+        }
+
+        // ─── LÓGICA MÓDULO: DEMANDA ───────────────────────────────────────
+        function analyzeDemand() {
+            const demandInput = document.getElementById("demand-input").value;
+            const cuñetes = parseInt(demandInput) || 0;
+            const container = document.getElementById("demand-analysis-result");
+            
+            if (!cuñetes) { container.style.display = "none"; return; }
+            
+            const stock = getStock();
+            const maxBatches = Math.min(Math.floor(stock.X / BATCH_X), Math.floor(stock.Y / BATCH_Y), Math.floor(stock.Z / BATCH_Z));
+            const currentCanProduce = maxBatches * BATCH_YIELD;
+
+            const batchesNeeded = Math.ceil(cuñetes / BATCH_YIELD);
+            const reqX = batchesNeeded * BATCH_X;
+            const reqY = batchesNeeded * BATCH_Y;
+            const reqZ = batchesNeeded * BATCH_Z;
+
+            const defX = Math.max(0, reqX - stock.X);
+            const defY = Math.max(0, reqY - stock.Y);
+            const defZ = Math.max(0, reqZ - stock.Z);
+            const hasDeficit = defX > 0 || defY > 0 || defZ > 0;
+
+            container.style.display = "block";
+            
+            let htmlContent = `
+                <div class="divider"></div>
+                <div class="metric-container">
+                    <div class="metric-card" style="border-color: ${hasDeficit ? 'var(--danger)' : 'var(--success)'}33">
+                        <div class="metric-val" style="color: ${hasDeficit ? 'var(--danger)' : 'var(--success)'};">${cuñetes}</div>
+                        <div class="metric-label">Cuñetes solicitados</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val">${batchesNeeded}</div>
+                        <div class="metric-label">Batches necesarios</div>
+                    </div>
+                    <div class="metric-card" style="border-color: ${hasDeficit ? 'var(--danger)' : 'var(--success)'}33">
+                        <div class="metric-val" style="color: ${hasDeficit ? 'var(--danger)' : 'var(--success)'};">${currentCanProduce}</div>
+                        <div class="metric-label">Cuñetes producibles</div>
+                    </div>
+                </div>
+            `;
+
+            if (hasDeficit) {
+                htmlContent += `
+                    <div style="background: var(--dangerLight); border: 1px solid #FCA5A533; border-radius: 10px; padding: 18px 22px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+                            <span style="color: var(--danger); font-weight: 700; font-size: 13px;">Déficit de stock — Producción insuficiente</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--dangerText); margin-bottom: 14px;">
+                            Para suplir ${cuñetes} cuñetes se requieren ${batchesNeeded} batches (${reqX + reqY + reqZ} kg totales). Déficit por componente:
+                        </p>
+                        <div class="grid-3">
+                            <div style="background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                                <div style="font-size: 11px; color: var(--textMuted); margin-bottom: 6px; font-weight: 600;">COMPONENTE X</div>
+                                <div style="font-size: 13px; color: var(--textSoft)">Requerido: <strong style="color: var(--text)">${reqX} kg</strong></div>
+                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${stock.X.toFixed(1)} kg</strong></div>
+                                <div style="font-size: 14px; font-weight: 700; color: ${defX > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top: 6px;">${defX > 0 ? `Faltan ${defX.toFixed(1)} kg` : 'Suficiente'}</div>
+                            </div>
+                            <div style="background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                                <div style="font-size: 11px; color: var(--textMuted); margin-bottom: 6px; font-weight: 600;">COMPONENTE Y</div>
+                                <div style="font-size: 13px; color: var(--textSoft)">Requerido: <strong style="color: var(--text)">${reqY} kg</strong></div>
+                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${stock.Y.toFixed(1)} kg</strong></div>
+                                <div style="font-size: 14px; font-weight: 700; color: ${defY > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top: 6px;">${defY > 0 ? `Faltan ${defY.toFixed(1)} kg` : 'Suficiente'}</div>
+                            </div>
+                            <div style="background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;">
+                                <div style="font-size: 11px; color: var(--textMuted); margin-bottom: 6px; font-weight: 600;">COMPONENTE Z</div>
+                                <div style="font-size: 13px; color: var(--textSoft)">Requerido: <strong style="color: var(--text)">${reqZ} kg</strong></div>
+                                <div style="font-size: 13px; color: var(--textSoft)">En bodega: <strong style="color: var(--text)">${stock.Z.toFixed(1)} kg</strong></div>
+                                <div style="font-size: 14px; font-weight: 700; color: ${defZ > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top: 6px;">${defZ > 0 ? `Faltan ${defZ.toFixed(1)} kg` : 'Suficiente'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                htmlContent += `
+                    <div style="background: var(--successLight); border: 1px solid #6EE7B733; border-radius: 10px; padding: 18px 22px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                            <span style="color: var(--success); font-weight: 700; font-size: 13px;">Stock suficiente — Demanda cubierta</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--successText); margin-top: 8px;">
+                            El inventario actual soporta los ${cuñetes} cuñetes estructurados en ${batchesNeeded} batch(es). Distribución apta para aprobación comercial.
+                        </p>
+                    </div>
+                `;
+            }
+            container.innerHTML = htmlContent;
+        }
+
+        // ─── LÓGICA MÓDULO: CONTROL DE PLANTA ─────────────────────────────
+        function submitPlantLog() {
+            const product = document.getElementById("p-product").value;
+            const operator = document.getElementById("p-operator").value.trim();
+            const kgInput = parseFloat(document.getElementById("p-kgInput").value);
+            const minutes = parseFloat(document.getElementById("p-minutes").value);
+            const tempC = parseFloat(document.getElementById("p-tempC").value);
+            const cuñetes = parseInt(document.getElementById("p-cuñetes").value);
+
+            // Validaciones Estrictas
+            if (!operator || isNaN(kgInput) || kgInput <= 0 || isNaN(minutes) || minutes <= 0 || isNaN(tempC) || isNaN(cuñetes) || cuñetes < 0) {
+                alert("Por favor, complete todos los campos requeridos con datos válidos.");
+                return;
+            }
+
+            const batchesUsed = kgInput / BATCH_KG;
+            const consumoX = +(batchesUsed * BATCH_X).toFixed(2);
+            const consumoY = +(batchesUsed * BATCH_Y).toFixed(2);
+            const consumoZ = +(batchesUsed * BATCH_Z).toFixed(2);
+
+            // Actualización matemática de inventario
+            const currentStock = getStock();
+            const newStock = {
+                X: +(currentStock.X - consumoX).toFixed(2),
+                Y: +(currentStock.Y - consumoY).toFixed(2),
+                Z: +(currentStock.Z - consumoZ).toFixed(2)
+            };
+            saveStock(newStock);
+
+            const expectedCuñetes = batchesUsed * BATCH_YIELD;
+            const efficiency = (cuñetes / expectedCuñetes) * 100;
+            const lostKg = Math.max(0, kgInput - (cuñetes * (BATCH_KG / BATCH_YIELD)));
+            const lossPercent = 100 - efficiency;
+
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleString("es-CO"),
+                product, operator, kgInput, minutes, tempC, cuñetes,
+                expectedCuñetes: +expectedCuñetes.toFixed(2),
+                efficiency: +efficiency.toFixed(1),
+                lostKg: +lostKg.toFixed(2),
+                lossPercent: +lossPercent.toFixed(1),
+                consumoX, consumoY, consumoZ
+            };
+
+            const allLogs = getPlantLogs();
+            allLogs.unshift(entry);
+            localStorage.setItem("plantLogs", JSON.stringify(allLogs));
+
+            // Feedback visual al usuario de planta
+            renderPlantSubmittedAlert(entry);
+            renderPlantLogs();
+            
+            // Limpieza de Formulario
+            document.getElementById("p-operator").value = "";
+            document.getElementById("p-kgInput").value = "";
+            document.getElementById("p-minutes").value = "";
+            document.getElementById("p-tempC").value = "";
+            document.getElementById("p-cuñetes").value = "";
+        }
+
+        function renderPlantSubmittedAlert(entry) {
+            const container = document.getElementById("plant-submitted-alert");
+            container.style.display = "block";
+            
+            const isMerma = entry.efficiency < 100;
+            container.className = "";
+            
+            container.innerHTML = `
+                <div style="background: ${isMerma ? 'var(--warnLight)' : 'var(--successLight)'}; border: 1px solid ${isMerma ? '#FCD34D55' : '#6EE7B755'}; border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${isMerma ? 'var(--warn)' : 'var(--success)'}" stroke-width="2.5"><path d="${isMerma ? 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4' : 'M20 6L9 17l-5-5'}"/></svg>
+                        <span style="color: ${isMerma ? 'var(--warnText)' : 'var(--successText)'}; font-weight: 700; font-size: 13px;">
+                            ${isMerma ? `Merma detectada: ${entry.lossPercent.toFixed(1)}% de pérdida — ${entry.lostKg} kg no rastreados` : 'Rendimiento óptimo — Lote registrado con éxito'}
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 20px; font-size: 13px; color: var(--textSoft); flex-wrap: wrap;">
+                        <span>Operario: <strong style="color: var(--text)">${entry.operator}</strong></span>
+                        <span>Cuñetes esperados: <strong style="color: var(--text)">${entry.expectedCuñetes}</strong></span>
+                        <span>Cuñetes reales: <strong style="color: var(--text)">${entry.cuñetes}</strong></span>
+                        <span>Eficiencia: <strong style="color: ${entry.efficiency >= 100 ? 'var(--success)' : entry.efficiency >= 90 ? 'var(--warn)' : 'var(--danger)'}">${entry.efficiency}%</strong></span>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 20px; font-size: 12px; color: var(--textMuted)">
+                        <span>Stock descontado automáticamente: X <strong style="color: var(--text)">-${entry.consumoX} kg</strong></span>
+                        <span>Y <strong style="color: var(--text)">-${entry.consumoY} kg</strong></span>
+                        <span>Z <strong style="color: var(--text)">-${entry.consumoZ} kg</strong></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPlantLogs() {
+            const logs = getPlantLogs();
+            const card = document.getElementById("plant-history-card");
+            const tbody = document.getElementById("plant-logs-table");
+            
+            if (logs.length === 0) { card.style.display = "none"; return; }
+            card.style.display = "block";
+            tbody.innerHTML = "";
+
+            logs.forEach(l => {
+                const effBadge = l.efficiency >= 100 ? 'badge-ok' : l.efficiency >= 90 ? 'badge-warn' : 'badge-error';
+                const lossBadge = l.lostKg > 0 ? 'badge-warn' : 'badge-ok';
+                
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${l.date}</td>
+                    <td style="font-size: 12px; font-weight:500;">${l.product}</td>
+                    <td>${l.operator}</td>
+                    <td>${l.kgInput}</td>
+                    <td>${l.minutes}</td>
+                    <td>${l.tempC}</td>
+                    <td>${l.cuñetes}</td>
+                    <td><span class="badge ${effBadge}">${l.efficiency}%</span></td>
+                    <td><span class="badge ${lossBadge}">${l.lostKg} kg</span></td>
+                    <td>
+                        <button style="background:none; border:none; cursor:pointer; color:var(--textMuted);" onclick="deletePlantLog(${l.id})">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deletePlantLog(id) {
+            let logs = getPlantLogs();
+            logs = logs.filter(l => l.id !== id);
+            localStorage.setItem("plantLogs", JSON.stringify(logs));
+            renderPlantLogs();
+            if(sessionStorage.getItem("ceo_auth") === "1") {
+                buildCeoCharts(); // Actualizar analíticas del directivo
+            }
+        }
+
+        // ─── LÓGICA MÓDULO: ANALÍTICAS Y CONTROL CEO ─────────────────────
+        function tryUnlockCeo() {
+            const pw = document.getElementById("ceo-password-input").value;
+            if (pw === CEO_PASSWORD) {
+                sessionStorage.setItem("ceo_auth", "1");
+                checkCeoAuthStatus();
+            } else {
+                document.getElementById("ceo-error-msg").style.display = "block";
+                document.getElementById("ceo-password-input").value = "";
+            }
+        }
+
+        function checkCeoAuthStatus() {
+            if (sessionStorage.getItem("ceo_auth") === "1") {
+                document.getElementById("ceo-lock-screen").style.display = "none";
+                document.getElementById("ceo-content").style.display = "block";
+                updateGlobalStockDisplays();
+                buildCeoCharts();
+            } else {
+                document.getElementById("ceo-lock-screen").style.display = "flex";
+                document.getElementById("ceo-content").style.display = "none";
+            }
+        }
+
+        function addStockFisico() {
+            const x = parseFloat(document.getElementById("add-X").value) || 0;
+            const y = parseFloat(document.getElementById("add-Y").value) || 0;
+            const z = parseFloat(document.getElementById("add-Z").value) || 0;
+
+            if (x === 0 && y === 0 && z === 0) return;
+
+            const stock = getStock();
+            stock.X = +(stock.X + x).toFixed(2);
+            stock.Y = +(stock.Y + y).toFixed(2);
+            stock.Z = +(stock.Z + z).toFixed(2);
+            
+            saveStock(stock);
+
+            document.getElementById("add-X").value = "";
+            document.getElementById("add-Y").value = "";
+            document.getElementById("add-Z").value = "";
+            
+            buildCeoCharts();
+        }
+
+        function buildCeoCharts() {
+            const logs = getPlantLogs();
+            
+            // 1. Calcular KPIs superiores del dashboard directivo
+            const totalLogs = logs.length;
+            let avgEff = "—";
+            let lotesConMerma = 0;
+            let pérdidaAcumulada = 0;
+
+            if (totalLogs > 0) {
+                const sumEff = logs.reduce((acc, curr) => acc + curr.efficiency, 0);
+                avgEff = (sumEff / totalLogs).toFixed(1);
+                lotesConMerma = logs.filter(l => l.efficiency < 100).length;
+                pérdidaAcumulada = logs.reduce((acc, curr) => acc + curr.lostKg, 0).toFixed(2);
+            }
+
+            document.getElementById("kpi-eff").innerText = avgEff + (avgEff !== "—" ? "%" : "");
+            document.getElementById("kpi-merma").innerText = lotesConMerma;
+            document.getElementById("kpi-loss").innerText = `${pérdidaAcumulada} kg`;
+            document.getElementById("kpi-logs-count").innerText = totalLogs;
+
+            // Colores dinámicos en KPIs según estados de alerta
+            const parsedAvg = parseFloat(avgEff);
+            document.getElementById("kpi-eff-card").style.borderColor = isNaN(parsedAvg) ? 'var(--border)' : parsedAvg >= 100 ? 'var(--success)33' : parsedAvg >= 90 ? 'var(--warn)33' : 'var(--danger)33';
+            document.getElementById("kpi-merma-card").style.borderColor = lotesConMerma > 0 ? 'var(--danger)33' : 'var(--success)33';
+            document.getElementById("kpi-loss-card").style.borderColor = pérdidaAcumulada > 0 ? 'var(--warn)33' : 'var(--success)33';
+
+            const emptyChartMsg = document.getElementById("chart-eff-empty");
+            const effWrapper = document.getElementById("chart-eff-wrapper");
+            const cuñCard = document.getElementById("chart-cuñ-card");
+            const tableCard = document.getElementById("ceo-table-card");
+
+            if (totalLogs === 0) {
+                emptyChartMsg.style.display = "block";
+                effWrapper.style.display = "none";
+                cuñCard.style.display = "none";
+                tableCard.style.display = "none";
+                return;
+            }
+
+            emptyChartMsg.style.display = "none";
+            effWrapper.style.display = "block";
+            cuñCard.style.display = "block";
+            tableCard.style.display = "block";
+
+            // Preparación cronológica reversa para gráficas (de Lote 1 en adelante)
+            const sortedLogs = [...logs].reverse();
+            const labels = sortedLogs.map((_, i) => `Lote ${i + 1}`);
+            const effData = sortedLogs.map(l => l.efficiency);
+            const cuñData = sortedLogs.map(l => l.cuñetes);
+            const pointColors = effData.map(v => v >= 100 ? "#00B8A0" : v >= 90 ? "#F59E0B" : "#EF4444");
+
+            // DESTROZAR GRÁFICAS PREVIAS PARA EVITAR BUG DE MEMORIA CANVAS
+            if(chartEffInstance) chartEffInstance.destroy();
+            if(chartCuñInstance) chartCuñInstance.destroy();
+
+            // Gráfico de Línea - Eficiencias
+            const ctxEff = document.getElementById('canvasEff').getContext('2d');
+            chartEffInstance = new Chart(ctxEff, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: effData,
+                        borderColor: '#00B8A0',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: '#FFFFFF',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        tension: 0.45,
+                        fill: true,
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, "rgba(0,184,160,0.18)");
+                            gradient.addColorStop(1, "rgba(0,184,160,0)");
+                            return gradient;
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 120, grid: { color: "#EDF2F7" }, ticks: { color: "#94A3B8", font: { size: 11 } } },
+                        x: { grid: { color: "#EDF2F7" }, ticks: { color: "#94A3B8", font: { size: 11 } } }
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#FFFFFF', borderColor: '#E8EDF5', borderWidth: 1,
+                            titleColor: '#4A5568', bodyColor: '#1A202C', padding: 12, cornerRadius: 10,
+                            callbacks: {
+                                label: (context) => {
+                                    const item = sortedLogs[context.dataIndex];
+                                    return [
+                                        `Eficiencia: ${item.efficiency}%`,
+                                        `Operario: ${item.operator}`,
+                                        `Cuñetes: ${item.cuñetes}/${item.expectedCuñetes}`,
+                                        `Pérdida: ${item.lostKg} kg`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Barras - Cuñetes Reales
+            const ctxCuñ = document.getElementById('canvasCuñ').getContext('2d');
+            chartCuñInstance = new Chart(ctxCuñ, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: cuñData,
+                        backgroundColor: "rgba(0,184,160,0.7)",
+                        borderColor: '#00B8A0',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: "#EDF2F7" }, ticks: { color: "#94A3B8", font: { size: 11 } } },
+                        x: { grid: { display: false }, ticks: { color: "#94A3B8", font: { size: 11 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Tabla inferior de Auditoría
+            const tbody = document.getElementById("ceo-logs-table");
+            tbody.innerHTML = "";
+            sortedLogs.reverse().forEach((l, i) => {
+                const rowIdx = totalLogs - i;
+                const badge = l.efficiency >= 100 ? 'badge-ok' : l.efficiency >= 90 ? 'badge-warn' : 'badge-error';
+                const statusTxt = l.efficiency >= 100 ? 'Rendimiento óptimo' : l.efficiency >= 90 ? `Merma: ${l.lossPercent}%` : `Alarma: ${l.lossPercent}% — ${l.lostKg} kg`;
+                
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${rowIdx}</td>
+                    <td>${l.date}</td>
+                    <td>${l.operator}</td>
+                    <td style="font-size:12px;">${l.product}</td>
+                    <td><span class="badge ${badge}">${l.efficiency}%</span></td>
+                    <td style="font-weight:500;">${statusTxt}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ─── LÓGICA MÓDULO: INTEGRACIÓN DIAN SIMULADA ─────────────────────
+        async function simulateDianRequest() {
+            const pos = document.getElementById("dian-pos").value;
+            const client = document.getElementById("dian-client").value.trim();
+            const cuñetes = parseInt(document.getElementById("dian-cuñetes").value) || 0;
+            const btn = document.getElementById("dian-submit-btn");
+
+            if (!client || cuñetes <= 0) {
+                alert("Ingrese un cliente y un volumen de cuñetes válido.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Validando fisicalidad...";
+
+            // Simulación asíncrona de latencia de red de pasarelas DIAN (600ms)
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+            const stock = getStock();
+            const batchesNeeded = Math.ceil(cuñetes / BATCH_YIELD);
+            const reqX = batchesNeeded * BATCH_X;
+            const reqY = batchesNeeded * BATCH_Y;
+            const reqZ = batchesNeeded * BATCH_Z;
+
+            const isApproved = stock.X >= reqX && stock.Y >= reqY && stock.Z >= reqZ;
+            
+            // Generación pseudo-aleatoria del Hash de timbre fiscal (CUFE / QR standard)
+            const hash = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join("");
+            const timestamp = new Date().toISOString();
+
+            let status = 0;
+            let statusText = "";
+            let responseBody = {};
+
+            if (isApproved) {
+                status = 200;
+                statusText = "OK — Inventario Bloqueado y Listo para Timbrado DIAN";
+                responseBody = {
+                    resultado: "APROBADO",
+                    codigo_validacion: "INV-OK-" + hash.slice(0, 8).toUpperCase(),
+                    hash_validacion: hash,
+                    timestamp,
+                    pedido: { cliente: client, pos, cuñetes, batches: batchesNeeded },
+                    inventario_bloqueado: { componente_x_kg: reqX, componente_y_kg: reqY, componente_z_kg: reqZ },
+                    mensaje: "Inventario físico verificado. Stock suficiente. Transacción habilitada para timbrado DIAN."
+                };
+            } else {
+                status = 400;
+                statusText = "Bad Request — Ruptura de Stock";
+                responseBody = {
+                    resultado: "BLOQUEADO",
+                    codigo_error: "STOCK-ERR-" + hash.slice(0, 8).toUpperCase(),
+                    timestamp,
+                    pedido: { cliente: client, pos, cuñetes, batches: batchesNeeded },
+                    deficit: { 
+                        componente_x_kg: Math.max(0, reqX - stock.X), 
+                        componente_y_kg: Math.max(0, reqY - stock.Y), 
+                        componente_z_kg: Math.max(0, reqZ - stock.Z) 
+                    },
+                    mensaje: "FACTURACION BLOQUEADA: Inventario insuficiente. Reabastezca antes de continuar."
+                };
+            }
+
+            // Almacenar logs de API
+            const apiLogs = getApiLogs();
+            apiLogs.unshift({
+                id: Date.now(),
+                ts: new Date().toLocaleString("es-CO"),
+                client, cuñetes, status, pos
+            });
+            localStorage.setItem("apiLogs", JSON.stringify(apiLogs));
+
+            // Renderizado de respuestas JSON estiladas
+            renderDianResponse(status, statusText, responseBody);
+            renderDianLogs();
+
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z"/></svg> Simular Solicitud POS`;
+        }
+
+        function renderDianResponse(status, statusText, body) {
+            const container = document.getElementById("dian-response-container");
+            container.style.display = "block";
+            
+            const isOk = status === 200;
+            container.innerHTML = `
+                <div class="card" style="border-color: ${isOk ? '#6EE7B7' : '#FCA5A5'}; background: ${isOk ? 'var(--successLight)' : 'var(--dangerLight)'}">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                        <span class="badge ${isOk ? 'badge-ok' : 'badge-error'}">HTTP ${status}</span>
+                        <span style="font-size: 13px; font-weight: 600; color: ${isOk ? 'var(--success)' : 'var(--danger)'};">${statusText}</span>
+                    </div>
+                    <pre style="background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 12px; color: var(--textSoft); white-space: pre-wrap; word-break: break-all; margin: 0;">${JSON.stringify(body, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        function renderDianLogs() {
+            const logs = getApiLogs();
+            const card = document.getElementById("dian-logs-card");
+            const tbody = document.getElementById("dian-logs-table");
+
+            if (logs.length === 0) { card.style.display = "none"; return; }
+            card.style.display = "block";
+            tbody.innerHTML = "";
+
+            logs.forEach(l => {
+                const badge = l.status === 200 ? 'badge-ok' : 'badge-error';
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${l.ts}</td>
+                    <td style="font-weight:600; color:var(--text);">${l.pos}</td>
+                    <td>${l.client}</td>
+                    <td>${l.cuñetes}</td>
+                    <td><span class="badge ${badge}">HTTP ${l.status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearDianLogs() {
+            localStorage.setItem("apiLogs", JSON.stringify([]));
+            renderDianLogs();
+        }
+    </script>
+</body>
+</html>
