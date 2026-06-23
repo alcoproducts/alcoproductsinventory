@@ -167,9 +167,8 @@
         /* ─── ESTRUCTURA (SIDEBAR + MAIN) ───────────────────────────────── */
         aside {
             width: 228px; flex-shrink: 0; background: var(--sidebar);
-            border-right: 1px solid var(--border); display: flex; flexDirection: column;
+            border-right: 1px solid var(--border); display: flex; flex-direction: column;
             box-shadow: 1px 0 0 #EDF2F7;
-            display: flex; flex-direction: column;
         }
 
         .sidebar-logo { padding: 22px 24px 18px; border-bottom: 1px solid var(--border); }
@@ -793,8 +792,14 @@
             const consumoY = +(batchesUsed * BATCH_Y).toFixed(2);
             const consumoZ = +(batchesUsed * BATCH_Z).toFixed(2);
 
-            // Actualización matemática de inventario
+            // Verificación física del stock en tiempo real antes de procesar
             const currentStock = getStock();
+            if (currentStock.X < consumoX || currentStock.Y < consumoY || currentStock.Z < consumoZ) {
+                alert(`¡Ruptura de Stock! No hay suficiente materia prima en bodega para procesar un lote de ${kgInput} kg.`);
+                return;
+            }
+
+            // Actualización matemática de inventario
             const newStock = {
                 X: +(currentStock.X - consumoX).toFixed(2),
                 Y: +(currentStock.Y - consumoY).toFixed(2),
