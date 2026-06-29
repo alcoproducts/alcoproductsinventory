@@ -1017,6 +1017,7 @@
             cuñCard.style.display = "block";
             tableCard.style.display = "block";
 
+            // Orden cronológico: del más antiguo al más reciente
             const sortedLogs = [...localPlantLogsCache].reverse();
             const labels = sortedLogs.map((_, i) => `Lote ${i + 1}`);
             const effData = sortedLogs.map(l => l.efficiency);
@@ -1047,8 +1048,17 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { y: { min: 0, max: 120 } },
-                    plugins: { legend: { display: false } }
+                    scales: {
+                        y: {
+                            min: Math.max(0, Math.floor(Math.min(...effData) - 15)),
+                            max: Math.ceil(Math.max(...effData) + 15),
+                            ticks: { callback: val => val + '%' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ' Eficiencia: ' + ctx.parsed.y + '%' } }
+                    }
                 }
             });
 
